@@ -75,7 +75,6 @@ sum(df_rep$age_sq)
 # 1.3.3
 install.packages("wooldridge")
 library(wooldridge)
-?wine
 df_wine <- wine
 ```
 
@@ -110,5 +109,7 @@ plot(df_c, col=rgb(1,0,0,1/4), add=T)
 # get difficulty variable from the dataset
 df_vote <- read.csv("anes_timeseries_2020_csv_20220210.csv")
 df_vote_difficulty <- df_vote[, c('V201658p', 'V202114i', 'V202120c', 'V202120e')]
-
+```
+```{r}
+df_vote_difficulty
 ```
