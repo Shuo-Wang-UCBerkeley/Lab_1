@@ -111,5 +111,10 @@ df_vote <- read.csv("anes_timeseries_2020_csv_20220210.csv")
 df_vote_difficulty <- df_vote[, c('V201658p', 'V202114i', 'V202120c', 'V202120e')]
 ```
 ```{r}
+df_voting_diff <- df_vote[, c('V201019', 'V202119', 'V201231x')]
+hist(df_voting_diff$V201019)
+```
+
+```{r}
 df_vote_difficulty
 ```
