@@ -21,6 +21,7 @@ library(tidyverse)
 library(magrittr)
 library(knitr)
 library(dplyr)
+library(patchwork)
 
 theme_set(theme_bw())
 
@@ -111,9 +112,30 @@ df_vote <- read.csv("anes_timeseries_2020_csv_20220210.csv")
 df_vote_difficulty <- df_vote[, c('V201658p', 'V202114i', 'V202120c', 'V202120e')]
 ```
 ```{r}
-df_voting_diff <- df_vote[, c('V201019', 'V202119', 'V201231x')]
-hist(df_voting_diff$V201019)
+df_voting_diff <- df_vote[, c('V202066', 'V201019', 'V202119', 'V201231x')]
 ```
+```{r}
+df_is_voter<- df_voting_diff[df_voting_diff$V202066 == 4,]
+df_is_voter<- df_is_voter[df_is_voter$V201231x != 4,]
+df_is_voter <- df_is_voter %>% 
+  mutate(
+    Party = case_when(
+      V201231x == 1 | V201231x == 2 | V201231x == 3 ~ "Democratic", 
+      V201231x == 5 | V201231x == 6 | V201231x == 7 ~ "Republican"
+  ))
+df_is_voter<- df_is_voter[df_is_voter$V202119 > 0,]
+colnames(df_is_voter)[which(names(df_is_voter) == "V202119")] <- "Difficulty"
+
+df_is_voter<-df_is_voter[, c("Difficulty", "Party")]
+
+# df_is_voter %>%
+#   mutate(Party = case_when(
+#     (V201231x >= 1 && V201231x <= 3) ~ "Democratic",
+#     (V201231x >= 5 && V201231x <= 7) ~ "Republican"
+#   ))
+```
+
+
 
 ```{r}
 df_vote_difficulty
