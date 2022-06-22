@@ -1,0 +1,114 @@
+---
+title: "w203_lab_1"
+output: html_document
+date: '2022-06-23'
+---
+---
+title: "Fear and Anger as Motivators for Voter Turnout"
+subtitle: "Datasci 203: An Example Statistical Analysis"
+author: "Paul Laskowski, Alex Hughes, and the 203 Teaching Team" 
+output:
+  bookdown::pdf_document2: 
+    toc: true
+    number_sections: true
+---
+
+\newpage
+\setcounter{page}{1}
+
+```{r load packages and set options, include=FALSE}
+library(tidyverse) 
+library(magrittr)
+library(knitr)
+library(dplyr)
+
+theme_set(theme_bw())
+
+options(tinytex.verbose = TRUE)
+knitr::opts_chunk$set(echo=FALSE, message=FALSE)
+
+```
+
+```{r}
+# 1.3.1
+cantril_ladder <- read_csv("happiness_WHR.csv")
+
+```
+
+```{r}
+# 1.3.2
+df <- read.csv("legislators-current.csv")
+df_summary <- df %>% 
+  group_by(party) %>% 
+  summarise(count=n())
+df_summary
+
+
+# age from dob
+df$Current_age = as.numeric(difftime(Sys.Date(),df$birthday, units = "weeks"))/52.25
+df$Current_age = floor(df$Current_age)
+
+# # tie
+# df_summary_age <- df %>%
+#   count(party, Current_age) %>%
+#   group_by(party) %>%
+#   mutate(prop = prop.table(n))
+
+df_summary_age <- df %>%
+  count(Current_age) %>%
+  mutate(prop = prop.table(n))
+
+# sums of squares of age
+df_demo <- df[df$party == 'Democrat', ]
+df_demo$age_sq <- df_demo$Current_age^2
+sum(df_demo$age_sq)
+
+df_rep <- df[df$party == 'Republican', ]
+df_rep$age_sq <- df_rep$Current_age^2
+sum(df_rep$age_sq)
+
+# difference
+(sum(df_demo$age_sq)-sum(df_rep$age_sq))/sum(df_rep$age_sq)
+
+```
+```{r}
+# 1.3.3
+install.packages("wooldridge")
+library(wooldridge)
+?wine
+df_wine <- wine
+```
+
+```{r}
+hist(df_wine$heart)
+hist(df_wine$liver)
+```
+
+```{r}
+p1 <- hist(df_wine$heart)
+p2 <- hist(df_wine$liver)
+plot(p1, col=rgb(0,0,1,1/4))
+plot(p2, col=rgb(1,0,0,1/4), add=T)
+```
+
+```{r}
+# 1.3.4
+df_reli <- read.csv("GSS_religion.csv")
+df_reli
+```
+
+```{r}
+df_p <- hist(df_reli$prottemp)
+df_c <- hist(df_reli$cathtemp)
+plot(df_p, col=rgb(0,0,1,1/4))
+plot(df_c, col=rgb(1,0,0,1/4), add=T)
+```
+
+
+```{r}
+# 2 Part 2: Statistical Analysis
+# get difficulty variable from the dataset
+df_vote <- read.csv("anes_timeseries_2020_csv_20220210.csv")
+df_vote_difficulty <- df_vote[, c('V201658p', 'V202114i', 'V202120c', 'V202120e')]
+
+```
