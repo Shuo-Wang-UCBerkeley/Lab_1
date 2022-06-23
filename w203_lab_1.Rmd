@@ -135,6 +135,21 @@ df_is_voter<-df_is_voter[, c("Difficulty", "Party")]
 #   ))
 ```
 
+```{r}
+?wilcox.test
+```
+```{r}
+wilcox.test(df_is_voter[df_is_voter$Party == 'Democratic',]$Difficulty, df_is_voter[df_is_voter$Party == 'Republican',]$Difficulty, alternative = "greater")
+```
+
+
+```{r}
+bxp <- ggboxplot(
+  genderweight, x = "group", y = "weight", 
+  ylab = "Weight", xlab = "Groups", add = "jitter"
+  )
+bxp
+```
 
 
 ```{r}
