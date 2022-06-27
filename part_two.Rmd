@@ -1,0 +1,182 @@
+---
+title: "Part Two"
+author: "Oscar Garcia, Shuo Wang"
+date: "2/14/2022"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+    toc_depth: 3
+---
+
+\newpage
+\setcounter{page}{1}
+
+```{r load packages and set options, include=FALSE}
+library(tidyverse) 
+library(magrittr)
+library(knitr)
+library(patchwork)
+library(moments)
+
+theme_set(theme_bw())
+
+options(tinytex.verbose = TRUE)
+knitr::opts_chunk$set(echo=FALSE, message=FALSE)
+
+```
+
+```{r load data}
+anes_lab1 <- read.csv("anes_timeseries_2020_csv_20220210.csv")
+nrow_original <- nrow(anes_lab1)
+```
+
+```{r clean data}
+anes_lab1 <- anes_lab1 %>% 
+  mutate(
+    voter2020 = case_when(
+      V201019 == 1 ~ T, 
+      V201032 == 1 ~ T, 
+      V201041 == 1 ~ T, 
+      V201051 == 1 ~ T,
+      V201069 == 1 ~ T)
+  ) 
+```
+
+```{r indicator voter as defined by us}
+summary(anes_lab1$voter2020)
+```
+
+```{r indicator voted in 2020}
+anes_lab1$voted2020 = anes_lab1$V202109x > 0
+summary(anes_lab1$voted2020)
+```
+
+```{r subset to voters}
+anes_lab1 <- anes_lab1 %>% 
+  filter(
+    voter2020  == T, 
+  )
+
+nrow_valid1 <- nrow(anes_lab1)
+```
+
+```{r comparison between our definition of voters and actual voters}
+anes_lab1$voted2020 = anes_lab1$V202109x > 0
+summary(anes_lab1$voted2020)
+```
+
+
+```{r subset to valid Party}
+anes_lab1 <- anes_lab1 %>% 
+  filter(
+    V201231x  > 0, 
+  )
+
+nrow_valid2 <- nrow(anes_lab1)
+```
+
+
+```{r party attribution and filtering out Independents}
+anes_lab1 <- anes_lab1 %>% 
+  mutate(
+    Party = case_when(
+      V201231x == 1 | V201231x == 2 | V201231x == 3 ~ "Democratic", 
+      V201231x == 5 | V201231x == 6 | V201231x == 7 ~ "Republican"
+  ))
+
+anes_lab1 <- anes_lab1 %>% 
+  filter(
+    Party == "Democratic" | Party == "Republican", 
+  )
+nrow_valid3 <- nrow(anes_lab1)
+
+table(anes_lab1$Party)
+```
+
+```{r difficulty rating and subset to valid rating}
+anes_lab1 <- anes_lab1 %>%
+  mutate(
+    Difficulty = case_when(
+      V202119 == 1 ~ 1,
+      V202119 == 2 ~ 2,
+      V202119 == 3 ~ 3,
+      V202119 == 4 ~ 4,
+      V202119 == 5 ~ 5,
+      V202114a == 1 ~ 6,
+      V202114b == 1 ~ 6,
+      V202114e == 1 ~ 6,
+      V202114f == 1 ~ 6,
+      V202114g == 1 ~ 6,
+      V202114i == 1 ~ 6,
+      V202114k == 1 ~ 6,
+      V202123 == 1 | V202123 == 2  | V202123 == 6 |  V202123 == 11 |  V202123 == 13 |  V202123 == 14 |  V202123 == 15 ~ 6
+    ))
+
+anes_lab1 <- anes_lab1 %>% 
+  filter(
+    Difficulty > 0, 
+  )
+nrow_valid4 <- nrow(anes_lab1)
+```
+
+```{r summary table}
+
+
+addmargins(table(anes_lab1$Party, anes_lab1$Difficulty))
+```
+```{r boxplot}
+# install.packages("ggpubr")
+# library(ggpubr)
+# # Box plot colored by groups: Democrats, Republicans
+# ggboxplot(anes_lab1, x = "Party", y = "Difficulty",
+#           color = "Party",
+#           palette = c("#00AFBB", "#E7B800"))
+
+ggstripchart(anes_lab1, x = "Party", y = "Difficulty",
+          color = "Party",
+          palette = c("#00AFBB", "#E7B800"),
+          add = "mean_sd")
+```
+
+
+
+```{r number of ties}
+# tied
+df_summary <- anes_lab1 %>%
+  count(Party, Difficulty) %>%
+  group_by(Party) %>%
+  mutate(prop = prop.table(n))
+```
+
+```{r}
+?wilcox.test
+wilcox.test(anes_lab1[anes_lab1$Party == 'Democratic',]$Difficulty, anes_lab1[anes_lab1$Party == 'Republican',]$Difficulty, alternative = "greater")
+```
+
+```{r}
+?wilcox.test
+wilcox.test(anes_lab1[anes_lab1$Party == 'Democratic',]$Difficulty, anes_lab1[anes_lab1$Party == 'Republican',]$Difficulty)
+```
+
+# Importance and Context
+
+Americans voted in record numbers in the 2020 election. \footnote{Pew Research Center. "Turnout soared in 2020 as nearly two-thirds of eligible U.S. voters cast ballots for president." (2021).}. Despite this, the US still lags behind other developed nations in electoral participation: 24th out of 35 OECD members, 30th in 2016. \footnote{Pew Research Center. "In past elections, U.S. trailed most developed countries in voter turnout." (2020).} At the same time, in the case of the presidential election, the winner has been decided by close margins in a few key states:in 2020, 37 electoral votes were decided by margins of victory of less than 1% (GA, AZ, WI); all of these went to Biden. This highlights the importance of mobilizing voters to ensure turnout is maximized so that a candidate has the best chance to prevail.
+
+We are a team of political consultants and have been mandated by the Democratic Party to advise them on relative difficulty to vote in their potential voters, as compared to Republican voters. The goal is not to be at a disadvantage with respect to the Republican candidates from the start. As a first step, this analysis aims to address the following research question:
+
+\begin{quote}
+  \textit{Did Democratic voters or Republican voters experience more difficulty voting in the 2020 election?}
+\end{quote}
+
+If we conclude that potential Democratic voters experience more difficulty to vote, the party and its elected representatives should push for further understanding of the causes and for legislative reforms, political campaigns to ease those difficulties or both.
+
+# Data and Methodology
+
+Our analysis leverages data from the 2020 American National Election Studies (ANES).  This is an observational dataset, based on a sample of respondents drawn from the YouGov platform. The YouGov panel is not nationally representative, and consists of participants who sign up to complete questionnaires in exchange for rewards.  This dataset includes `r nrow_original` individuals. We remove individuals who do not have election turnout values reported in either 2016 or 2018, as well as individuals who either report that they "Do not know", or "Did not respond" to the key _anger_ or _fear_ survey questions. This leaves `r nrow_valid1` observations.
+
+As we report in Table \@ref(tab:summary-table), 70% of ANES respondents report that they voted in both the 2016 and 2018 elections. While turnout of 75% might be expected in the presidential general, it is highly unusual to have turnout this high in an off-cycle election. Also notable in this data is that voting (or not voting) seems to be highly consistent over time -- only 10% of the respondents report taking a different action in 2016 compared to 2018. 
+
+To operationalize the concept of voter turnout, we consider changes in voting behavior from 2016 to 2018. We refer to a change from not voting to voting as a voting increase, and a change from voting to not voting as a voting decrease. Although the net total of increases and decreases may be interesting in some contexts, we focus on voting increases as our main outcome variable. We believe that the "new voters" this variable identifies are especially relevant to a study of increasing turnout. We exclude voters who were potentially too young to vote in 2016, resulting in `r nrow_valid2` observations.
+
+As an alternative to our focus on voting increases, we considered directly comparing voting rates in one fixed election. However, most individuals maintain the same voting behavior over time, making it difficult to relate a single voting decision to emotions in 2018. 
