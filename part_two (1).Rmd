@@ -1,0 +1,259 @@
+---
+title: "Part Two"
+author: "Oscar Garcia, Shuo Wang"
+date: "6/28/2022"
+output:
+  pdf_document:
+    toc: yes
+    number_sections: yes
+    toc_depth: 3
+  html_document:
+    toc: yes
+    toc_depth: '3'
+    df_print: paged
+---
+
+\newpage
+\setcounter{page}{1}
+
+```{r load packages and set options, include=FALSE}
+library(tidyverse) 
+library(magrittr)
+library(knitr)
+install.packages("patchwork")
+library(patchwork)
+library(moments)
+#install.packages("ggpubr")
+#library(ggpubr)
+
+theme_set(theme_bw())
+
+options(tinytex.verbose = TRUE)
+knitr::opts_chunk$set(echo=FALSE, message=FALSE)
+
+```
+
+```{r load data, include=FALSE}
+anes_lab1 <- read.csv("anes_timeseries_2020_csv_20220210.csv")
+nrow_original <- nrow(anes_lab1)
+```
+
+```{r clean data, include=FALSE}
+anes_lab1 <- anes_lab1 %>% 
+  mutate(
+    voter2020 = case_when(
+      V201019 == 1 ~ T, 
+      V201032 == 1 ~ T, 
+      V201041 == 1 ~ T, 
+      V201051 == 1 ~ T,
+      V201069 == 1 ~ T)
+  ) 
+```
+
+```{r indicator voter as defined by us, include=FALSE}
+summary(anes_lab1$voter2020)
+```
+
+```{r indicator voted in 2020, include=FALSE}
+anes_lab1$voted2020 = anes_lab1$V202109x > 0
+summary(anes_lab1$voted2020)
+```
+
+```{r subset to voters, include=FALSE}
+anes_lab1 <- anes_lab1 %>% 
+  filter(
+    voter2020  == T, 
+  )
+
+nrow_valid1 <- nrow(anes_lab1)
+```
+
+```{r comparison between our definition of voters and actual voters, include=FALSE}
+anes_lab1$voted2020 = anes_lab1$V202109x > 0
+summary(anes_lab1$voted2020)
+```
+
+
+```{r subset to valid Party, include=FALSE}
+anes_lab1 <- anes_lab1 %>% 
+  filter(
+    V201231x  > 0, 
+  )
+
+nrow_valid2 <- nrow(anes_lab1)
+```
+
+
+```{r party attribution and filtering out Independents, include=FALSE}
+anes_lab1 <- anes_lab1 %>% 
+  mutate(
+    Party = case_when(
+      V201231x == 1 | V201231x == 2 | V201231x == 3 ~ "Democratic", 
+      V201231x == 5 | V201231x == 6 | V201231x == 7 ~ "Republican"
+  ))
+
+anes_lab1 <- anes_lab1 %>% 
+  filter(
+    Party == "Democratic" | Party == "Republican", 
+  )
+nrow_valid3 <- nrow(anes_lab1)
+
+table(anes_lab1$Party)
+```
+
+
+
+```{r difficulty rating and subset to valid rating, include=FALSE}
+anes_lab1 <- anes_lab1 %>%
+  mutate(
+    Difficulty = case_when(
+      V202119 == 1 ~ 1,
+      V202119 == 2 ~ 2,
+      V202119 == 3 ~ 3,
+      V202119 == 4 ~ 4,
+      V202119 == 5 ~ 5,
+      V202114a == 1 ~ 6,
+      V202114b == 1 ~ 6,
+      V202114e == 1 ~ 6,
+      V202114f == 1 ~ 6,
+      V202114g == 1 ~ 6,
+      V202114i == 1 ~ 6,
+      V202114k == 1 ~ 6,
+      V202123 == 1 | V202123 == 2  | V202123 == 6 |  V202123 == 11 |  V202123 == 13 |  V202123 == 14 |  V202123 == 15 ~ 6
+    ))
+
+anes_lab1 <- anes_lab1 %>% 
+  filter(
+    Difficulty > 0, 
+  )
+nrow_valid4 <- nrow(anes_lab1)
+```
+
+```{r eval=FALSE, include=FALSE}
+prop.table(table(anes_lab1$Party,anes_lab1$voted2020),1)
+```
+
+# Importance and Context
+
+Americans voted in record numbers in the 2020 election \footnote{Pew Research Center. "Turnout soared in 2020 as nearly two-thirds of eligible U.S. voters cast ballots for president." (2021).}. Despite this, the US still lags behind other developed nations in electoral participation: 24th out of 35 OECD members, 30th in 2016 \footnote{Pew Research Center. "In past elections, U.S. trailed most developed countries in voter turnout." (2020).} At the same time, in the case of the presidential election, the winner has been decided by close margins in a few key states:in 2020, 37 electoral votes were decided by margins of victory of less than 1% (GA, AZ, WI); all of these went to Biden. This highlights the importance of mobilizing voters to ensure turnout is maximized so that a candidate has the best chance to prevail.
+
+We are a team of political consultants and have been mandated by the Democratic Party to advise them on relative difficulty to vote in their potential voters, as compared to Republican voters. The goal is not to be at a disadvantage with respect to the Republican candidates from the start. As a first step, this analysis aims to address the following research question:
+
+\begin{quote}
+  \textit{Did Democratic voters or Republican voters experience more difficulty voting in the 2020 election?}
+\end{quote}
+
+If we conclude that potential Democratic voters experience more difficulty to vote, the party and its elected representatives should push for further understanding of the causes and for legislative reforms, political campaigns to ease those difficulties or both.
+
+# Data and Methodology
+
+We use data from the 2020 American National Election Studies (ANES).  It includes re-interviews with 2016 respondents as well as fresh survey to addresses randomly drawn from the USPS, and post-election surveys with respondents from the General Social Survey (GSS).  This dataset includes `r nrow_original` individuals. 
+
+Who is a "voter"? since greater difficulty would entail not being to vote in the most extreme cases, we want to include respondents who _intended_ to vote but could not do so. The data includes a self-reported level of voting difficulty, but the universe of that question included only those who did vote. To have a broader picture of who is a potential voter, we define "voter" as follows:
+
+- Respondents who stated they intended to register to vote (variable V201019 in ANES), intended to to vote for President (V201032), intended to vote for US House (V201041), intended to vote for US Senate (V201051), intended to vote for Governor (V201069).
+
+We remove respondents who are not "voters according to the definitions above. This leaves `r nrow_valid1` observations.
+
+To operationalize the concept of who is a "Republican" or a "Democrat", we leverage V201231x in ANES, a summary variable that includes 7 valid responses in an ordinal scale from 1. Strong Democrat to 7. Strong Republican, with 4. being Independent. Research shows that self-described "Lean Republican" or "Lean Democrats" are in fact partisans \footnote{"Measuring party support: Leaners are not independents", Petrocik (2009).}, so we map the responses as follows:
+
+- V201231x responses 1 to 3 are mapped to "Democrat".
+- V201231x responses 5 to 7 are mapped to "Republican".
+
+We discard the remaining "Independent" respondents for the purposes of this study, resulting in `r nrow_valid2` observations.
+
+To operationalize the concept of "difficulty voting", we leverage two groups of variables: one for respondents who managed to vote, and one for those who did not finally vote. The new Difficulty rating we build has the following elements:
+
+- Answers to Variable 202119, the question "How difficult was it to vote": ranging from 1 (not difficult at all) to 5 (Extremely difficult). We take these valid responses directly, as they apply to respondents who voted in 2020.
+- For voters who did not vote, we create an additional level of difficulty: 6. We selected reasons with the criteria of whether the Democratic Party can take an action that would help correct that difficulty.  We assign evel 6 to respondents who gave a positive response to these variables:
+  - V202114a: did not meet registration deadlines; V202114b: did not know where or how to register; V202114e: did not have required id; V202114f: not interested in the election; V202114g: my vote would not make a difference; V202114i: difficulty with English; V202114k: other reason.
+
+Another source of information for Difficulty is V202123, main reason respondent did not vote. We map some of the responses to our new level 6:
+  - 1. I forgot; 2. I'm not interested; 6. I did not have correct form of id; 11. The line at the polls was too long; 13. I requested but did not receive an absentee ballot; 14. I did not know where to vote; 15.I did not feel that I knew enough about the choices
+  
+We exclude voters without a positive Difficulty rating, resulting in `r nrow_valid4` observations.
+
+As alternative to the above, we considered defining "voters" as only those respondents who stated they voted, and directly taking their self-reported difficulty rating. The issue with this approach was that we were not including people who intended to vote but found difficulties that prevented them from doing so, as explained earlier.
+
+```{r summary table, include=FALSE}
+
+
+addmargins(table(anes_lab1$Party, anes_lab1$Difficulty))
+```
+
+```{r make summary table} 
+summary_table <- addmargins(table(anes_lab1$Party, anes_lab1$Difficulty))
+summary_tablep <- prop.table(table(anes_lab1$Party, anes_lab1$Difficulty),1)
+```
+
+```{r summary-table1}
+kable(
+  summary_table,
+  digits = 2,
+  caption = 'Voting Difficulty by Party allegiance (count)', 
+  booktabs = TRUE, 
+)
+```
+
+As we report in Table 1, we have slightly more Democratic respondents than Republicans (2969 vs 2647). We see that the majority of voters reported having no difficulty at all, which was to be expected. To have a first approximation on which group seemed to have higher difficulty in voting, we ran the proportions within each political group in Table 2. This shows that the proportion of Democratic voters with difficulty ratings 2 and 3 is higher than Republicans for the same ratings (8% and 3% versus 6% and 2%, respectively). For any rating that implies some difficulty (2 to 6), the proportion of Democratic voters in those ratings is equal or higher than Republicans except for rating 5. This rating is the one with the smallest absolute number of voters across ratings as shown in Table 1.
+
+```{r summary-table2}
+kable(
+  summary_tablep,
+  digits = 2,
+  caption = 'Voting Difficulty by Party allegiance', 
+  booktabs = TRUE, 
+)
+```
+
+```{r plot, eval=FALSE, fig.cap='Voter Difficulty and Party allegiace.', fig.height=4, fig.pos='!b', message=FALSE, warning=FALSE, include=FALSE}
+# 
+# 
+# ggstripchart(anes_lab1, x = "Party", y = "Difficulty",
+#           color = "Party",
+#           palette = c("red", "blue"),
+#           add = "median",
+#           ylab = "Difficulty in voting")
+```
+
+
+<!-- The Figure \@ref(fig:plots)  plots the Difficulty ratings in the data by political party allegiance. We can see how most of voters in either party reported no difficulty in voting, but Democratic voters seemed to have had some difficulty (ratings 2 and 3) than Republicans, looking at the density of dots. Higher difficulty ratings (4 and above) dots density seem reasonably equal across both political groups. -->
+To answer our research question, first we need to select the most appropriate test. The data are unpaired (each respondent in our analysis data is either Democratic or Republican and has a single difficulty rating associated). The Difficulty rating is not metric: we cannot define a "distance" that would guarantee that differences between ratings 1 and 2 mean the same thing as say, distance between 5 and 6. The scale is ordinal. Therefore, we need a non-parametric test. We could have chosen to convert this scale to binary (for example saying Difficulty ratings above 2 or 3 means "having difficulty" with a value of 1 in the new binary variable, rest are 0). The resulting binary scale would be metric, and we could use a t-test. We would however lose information contained in difficulty scale, which we feel is important for a political party to assess further action. We decide to use a Wilcoxon rank-sum test. Since the Difficulty scale is only ordinal, we will use Hypothesis of Comparisons Version.
+
+The null hypothesis of our Wilcoxon rank-sum test can be phrased as follows: 
+
+\begin{quote}
+  \textbf{Null Hypothesis:} \textit{The probability that a Democratic voter had more difficulty voting in 2020 than a Republican voter is the same as the probability that a Republican voter had more difficulty voting in 2020 than a Democratic voter}
+\end{quote}
+
+Assumptions for Wilcoxon rank-sum test with Hypothesis of Comparisons: 1) Ordinal scale in the outcome variable. This holds because Difficulty rating is ordinal. 2) IID data. Each Democratic sample is drawn from the same distribution, each Republican sample is drawn from the same distribution, and all are mutually independent. We believe this assumption is plausibly true given that respondents were drawn from the USPS address lists, and household members were taken to a screening instrument to randomly select one person from the ones living at the address, thus reducing household effect.
+
+# Results
+
+```{r wilcoxon test, echo=TRUE}
+# ?wilcox.test
+wilcox.test(anes_lab1[anes_lab1$Party == 'Democratic',]$Difficulty, 
+            anes_lab1[anes_lab1$Party == 'Republican',]$Difficulty, alternative = "greater")
+```
+
+The test is significant and provides evidence that we can reject the null hypothesis. Therefore we accept the alternative hypothesis, which is that the probability that Democratic voters had a greater difficulty in voting than Republicans is higher than the probability that the Republicans had more difficulty (p=0.024).
+
+```{r include=FALSE}
+sum(anes_lab1$Party == "Democratic")*sum(anes_lab1$Party == "Republican")
+```
+
+```{r include=FALSE}
+4000544/7858943
+```
+
+To study if this statistically significant result is of _practical significance_, we can use common language effect size (valid for ordinal data according to \footnote{"A Critique and Improvement of the CL Common Language Effect Size Statistics of McGraw and Wong", Vargha, András; Delaney, Harold D. (2000).}: there are $7,858,943$ pairs (Democrat,Republican) in our data. If we divide the W value $4,000,544$ by that number, we get $0.509$: in $50.9\%$ of pairs, Democratic voters have more difficulty voting than Republican voters. This effect size is considered large enough to be meaningful in real life. Further, Table 2 shows that the percentage of Democratic voters that found some difficulty (ratings 2 and above) add up to 15% of voters, while the figure is 13% for Republicans. This difference of 2 percentage points is meaningful for the Democratic Party, because swing states have been decided, as seen in the Introduction section, by margins even smaller than 1 percentage point.
+
+Out study does have some limitations. We cannot attribute causality between party allegiance and difficulty voting. We can only measure association between self-reported difficulty and allegiance to the two parties.
+
+# Discussion
+
+The study found evidence that Democratic voters had more difficulty voting in 2020 than Republican voters. The effect appears statistically significant, and the difference of a few percentage points of Democratic voters saying they experienced difficulty is or practical significance because differences of that order of magnitude have decided elections recently. Even a voter that experienced difficulty and finally voted could decide to give up the next time, so this is an issue the Party should address.
+
+The Democratic Party could take multiple actions from this result: increase efforts to inform potential voters about upcoming elections, improve awareness of candidates, push legislative reforms that make it easier to vote.
+Future work may address specific sources of difficulty or socioeconomic segmentation to improve targeting of the measures suggested to reduce voting difficulty.
+
